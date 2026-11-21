@@ -1,40 +1,41 @@
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from lightgbm import LGBMClassifier
+from ..config import CONFIG
 
 
 model0 = ['XGBclassifier', ## Very bad for our problem (Sharpe ratio -1.4)
           xgb.XGBClassifier(
-    max_depth=3,            # Keep trees shallow so they don't overfit to noise
-    learning_rate=0.03,     # Slower learning rate for better generalization
-    subsample=0.8,          # Randomly sample rows to prevent dominance by majority classes
-    colsample_bytree=0.8,   # Randomly sample features per tree
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1
+    max_depth=CONFIG.xgboost.max_depth,
+    learning_rate=CONFIG.xgboost.learning_rate,
+    subsample=CONFIG.xgboost.subsample,
+    colsample_bytree=CONFIG.xgboost.colsample_bytree,
+    n_estimators=CONFIG.xgboost.n_estimators,
+    random_state=CONFIG.xgboost.random_state,
+    n_jobs=CONFIG.xgboost.n_jobs
 )]
 
 model1 = ['RandomForestClassifier',
           RandomForestClassifier(
-    n_estimators=200,
-    max_depth=5,
-    class_weight='balanced',
-    random_state=42,
-    n_jobs=-1
+    n_estimators=CONFIG.random_forest.n_estimators,
+    max_depth=CONFIG.random_forest.max_depth,
+    class_weight=CONFIG.random_forest.class_weight,
+    random_state=CONFIG.random_forest.random_state,
+    n_jobs=CONFIG.random_forest.n_jobs
 )]
 
 model2 = ['LGBMClassifier',
           LGBMClassifier(
-    n_estimators=100,
-    learning_rate=0.03,
-    max_depth=4,              # Keep trees shallow to prevent overfitting
-    num_leaves=15,            # Must be less than 2^max_depth
-    subsample=0.8,            # Row subsampling for robustness
-    colsample_bytree=0.8,     # Feature subsampling
-    class_weight='balanced',
-    verbose=-1,               # Handles class balance natively
-    random_state=42,
-    n_jobs=-1
+    n_estimators=CONFIG.lightgbm.n_estimators,
+    learning_rate=CONFIG.lightgbm.learning_rate,
+    max_depth=CONFIG.lightgbm.max_depth,
+    num_leaves=CONFIG.lightgbm.num_leaves,
+    subsample=CONFIG.lightgbm.subsample,
+    colsample_bytree=CONFIG.lightgbm.colsample_bytree,
+    class_weight=CONFIG.lightgbm.class_weight,
+    verbose=-1,
+    random_state=CONFIG.lightgbm.random_state,
+    n_jobs=CONFIG.lightgbm.n_jobs
 )]
 
 Models = [model0, model1, model2]

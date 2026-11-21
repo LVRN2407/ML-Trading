@@ -1,8 +1,14 @@
 from ..data_treatment.data_loader import get_dataset
+from ..config import CONFIG
 
-SPY = ['SPY',get_dataset('SPY')]
-DIA = ['DIA',get_dataset('DIA')]
-SPLV = ['SPLV',get_dataset('SPLV')]
-TLT = ['TLT',get_dataset('TLT')]
-
-DATASETS = [SPY, DIA, SPLV, TLT]
+DATASETS = [
+    [
+        symbol,
+        get_dataset(
+            symbol,
+            StartDate=list(CONFIG.data.start_date),
+            EndDate=list(CONFIG.data.end_date),
+        ),
+    ]
+    for symbol in CONFIG.data.symbols
+]

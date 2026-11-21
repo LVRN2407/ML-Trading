@@ -14,7 +14,8 @@ from .metadata import Co_datas, Variation
 
 from sklearn.preprocessing import StandardScaler
 
-def feature_target(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20):
+def feature_target(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20,
+                   train_ratio=0.80, embargo_bars=None, window_step=5):
     dco = Co_datas(df, SMA, ATRS, ATRL, ZVOL)
     dvar = Variation(df)
     DF = pd.concat([dco, dvar], axis=1)
@@ -26,10 +27,11 @@ def feature_target(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20):
     Yi_train_list = []
     Yi_test_list = []
 
-    train_limit = int((R - t - T) * 0.8)
-    embargo_gap = t + T
+    train_limit = int((R - t - T) * train_ratio)
+    embargo_gap = t + T if embargo_bars is None else embargo_bars
+    window_step = max(1, window_step)
 
-    for I in range(0, max(0, R - t - T + 1), 5):
+    for I in range(0, max(0, R - t - T + 1), window_step):
         prc = I / R * 100
         if prc > prog * 10:  ## print progression
             print(prc, ' / 100')
@@ -106,8 +108,12 @@ def feature_target(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20):
             Xi_test,
             Yi_test)
 
-def standardize(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20):
-    (Xi_train, Yi_train, Xi_test, Yi_test) = feature_target(df, T, t, SL, NP, SMA, ATRS, ATRL, ZVOL)
+def standardize(df, T, t, SL, NP, SMA=20, ATRS=20, ATRL=3, ZVOL=20,
+                train_ratio=0.80, embargo_bars=None, window_step=5):
+    (Xi_train, Yi_train, Xi_test, Yi_test) = feature_target(
+        df, T, t, SL, NP, SMA, ATRS, ATRL, ZVOL,
+        train_ratio, embargo_bars, window_step
+    )
 
     scaler = StandardScaler()
     # Drop metadata columns before scaling features

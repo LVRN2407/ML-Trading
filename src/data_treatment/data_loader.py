@@ -15,7 +15,11 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
 
-def get_dataset(token, StartDate=[2020,1,1], EndDate=[2023,1,1]) :
+def get_dataset(token, StartDate=None, EndDate=None) :
+  if StartDate is None:
+    StartDate = [2020, 1, 1]
+  if EndDate is None:
+    EndDate = [2023, 1, 1]
     
   key = os.getenv("ALPACA_API_KEY")
   secret = os.getenv("ALPACA_API_SECRET")
