@@ -1,30 +1,45 @@
 # ML-Trading
 
-A learning-focused machine learning project for trading that predicts which barrier a stock will hit first—**stop loss**, **take profit (top profit)**, or **time limit**—given the three barrier parameters and the stock's past price/market evolution, using the **Alpaca Python** tool (`alpaca-py`).
+**ML-Trading** is a modular Python machine learning pipeline built to research, train, and evaluate quantitative trading strategies using **triple-barrier labeling**. Rather than relying on fixed time horizons alone, triple-barrier labeling sets upper profit-taking, lower stop-loss, and vertical time-expiration barriers around each entry point—capturing realistic trade outcomes based on path-dependent price action.
 
-## Overview & Goal
+The project organizes data ingestion, preprocessing/metadata transformations, model training, and backtesting into separate packages under `src/` so individual stages can be developed, tested, and maintained independently while sharing a consistent data and execution flow.
 
-This project is built primarily as a hands-on learning project to get more comfortable working with machine learning models, data pipelines, and evaluation workflows in preparation for potential summer internships.
-
-Instead of only predicting raw price direction or point returns, the model frames trade outcomes around three barriers:
-- **Stop Loss:** Downside risk threshold to cap losses on a trade.
-- **Take Profit (Top Profit):** Upside target threshold to lock in gains.
-- **Time Limit:** Maximum holding window (in bars/time steps) before the trade expires.
-
-Given a candidate set of these **3 barrier parameters** alongside **historical stock evolution** (past price action and derived features fetched via Alpaca), the model predicts which barrier will be hit first.
-
-## How It Works
-
-1. **Market Data via Alpaca Python:** Use the Alpaca Python SDK (`alpaca-py`) to pull historical stock market data and build lag, return, volatility, or technical features representing past stock evolution.
-2. **Barrier Labeling:** Define stop-loss, take-profit, and time-limit barriers and label historical windows by which barrier is reached first.
-3. **Model Training & Experimentation:** Train and compare machine learning models to predict barrier outcomes from historical stock evolution and the three barrier parameters, focusing on clean experimentation and evaluation.
-4. **Barrier Evaluation:** Inspect predicted outcomes across barrier configurations to explore how barrier choices behave on historical data.
+---
 
 ## Project Structure
 
 ```text
 ML-Trading/
-├── notebooks/     # Exploratory data analysis and ML experiments
-├── src/           # Alpaca data fetching, feature engineering, labeling, and model code
-├── README.md      # Project documentation
-└── requirements.txt
+├── src/
+│   ├── backtest/
+│   │   └── backtest.py
+│   ├── data_treatment/
+│   │   ├── data_loader.py
+│   │   ├── data_split.py
+│   │   ├── data_visualization.py
+│   │   └── metadata.py
+│   └── ML/
+│       ├── Data_imports.py
+│       ├── Models.py
+│       └── Training.py
+├── .env
+├── .gitignore
+└── README.md
+```
+## What to Import
+
+Imports in this project are split between **third-party libraries** and **internal modules** inside `src/`. Always run commands from the `ML-Trading` root (`py -m src.ML.Training`) so relative imports resolve cleanly.
+
+### 1. Third-Party Packages
+* **Environment & data loading:** `os`, `pathlib.Path`, `datetime.datetime`, `dotenv.load_dotenv`, and `pandas` for reading `.env` credentials and handling market data tables.
+* **Market data (`alpaca-py`):** `StockHistoricalDataClient`, `StockBarsRequest`, and `TimeFrame` from `alpaca.data.*` to fetch historical bars.
+* **Machine learning (`scikit-learn`):** Estimators and model tools from `sklearn` (such as `RandomForestClassifier` in `src/ML/Models.py`).
+
+### 2. Internal Project Imports
+* **`src/ML/Data_imports.py`:** Imports dataset helpers from `data_loader.py` (such as `get_dataset`) to build datasets like `SPY` and `DATASETS`.
+* **`src/ML/Training.py`:** Uses relative imports to bring in `DATASETS` from `.Data_imports`, estimators from `.Models`, and backtest evaluation functions (such as `Best_overall`) from `..backtest.backtest`.
+* **`src/backtest/backtest.py`:** Imports preprocessing/metadata utilities from `..data_treatment.metadata` (such as `standardize`)—make sure the imported function name matches what is actually defined in `metadata.py`.
+
+### Quick Import Rules
+* Use **relative imports** (`from .` or `from ..`) between files inside `src/` when running as a module with `py -m ...`.
+* Install `scikit-learn` (not `sklearn`) via `pip`, while keeping Python imports as `from sklearn...`.
