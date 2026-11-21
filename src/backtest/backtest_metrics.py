@@ -5,7 +5,8 @@ from math import sqrt
 from ..data_treatment.metadata import Numerize
 
 
-def sharpe_ratio(Xtest, df, Ypred, Ytest, T, Ts, fee_pct=0.001):
+def sharpe_ratio(Xtest, df, Ypred, Ytest, T, Ts, fee_pct=0.001,
+                 trading_days_per_year=252, skip_overlapping_trades=True):
     trade = 0
     df = Numerize(df)
     Predval = Ypred.tolist()
@@ -31,7 +32,7 @@ def sharpe_ratio(Xtest, df, Ypred, Ytest, T, Ts, fee_pct=0.001):
 
     for i in range(len(Predval)):
         # If a trade is currently active, skip taking new ones to prevent overlapping inflation
-        if skip_counter > 0:
+        if skip_overlapping_trades and skip_counter > 0:
             skip_counter -= 1
             Returns.append(0.0)
             continue
@@ -78,7 +79,7 @@ def sharpe_ratio(Xtest, df, Ypred, Ytest, T, Ts, fee_pct=0.001):
     S = Trade_Returns.rolling(Ts, min_periods=1).std()
     s = Trade_Returns.std()
 
-    Tradesperyear = trade/len(Predval) *252
+    Tradesperyear = trade/len(Predval) * trading_days_per_year
 
     SHR = []
     for j in range(len(R)):
