@@ -24,7 +24,6 @@ Given a candidate set of these **3 barrier parameters** alongside **historical s
 
 ```text
 ML-Trading/
-├── data/          # Raw and processed market data (keep large/sensitive data out of Git)
 ├── notebooks/     # Exploratory data analysis and ML experiments
 ├── src/           # Alpaca data fetching, feature engineering, labeling, and model code
 ├── README.md      # Project documentation
