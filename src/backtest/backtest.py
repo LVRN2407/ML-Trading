@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import classification_report
 
-from ..data_treatment.metadata import standardize  
+from ..data_treatment.data_split import standardize  
 from .backtest_metrics import sharpe_ratio  
 
 
