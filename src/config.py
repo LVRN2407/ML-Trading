@@ -42,6 +42,7 @@ class BacktestConfig:
     fee_pct: float = 0.001
     trading_days_per_year: int = 252
     skip_overlapping_trades: bool = True
+    max_workers: int = 4
 
 
 @dataclass(frozen=True)

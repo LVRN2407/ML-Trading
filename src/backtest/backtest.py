@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
+import os
 from sklearn.metrics import classification_report
 
 from ..data_treatment.data_split import standardize  
@@ -17,12 +20,13 @@ def train_predict(model, Xtrain, Ytrain, Xtest, Ytest):
     return (Ypred, Ytest ,Xtest)
 
 
-def model_backtest(MODELS, df, T, t, SL, NP, Ts, Xtrain, Ytrain, Xtest_scaled, Ytest_orig, Xi_test_df, SMA=20, ATRS=20, ATRL=3, ZVOL=20, fee_pct=0.001, trading_days_per_year=252, skip_overlapping_trades=True):
+def model_backtest(MODELS, df, T, t, SL, NP, Ts, Xtrain, Ytrain, Xtest_scaled, Ytest_orig, Xi_test_df, SMA=20, ATRS=20, ATRL=3, ZVOL=20, fee_pct=0.001, trading_days_per_year=252, skip_overlapping_trades=True, plot_results=True, model_n_jobs=1):
     # Unpack including the pristine Xi_test DataFrame
     Sharpe_ratios = []
     for Model in MODELS:
         print(f"\nEvaluating: {Model[0]}")
         model = Model[1]
+        model.set_params(n_jobs=model_n_jobs)
 
         # Run prediction using the scaled features
         (Ypred, _, _) = train_predict(model, Xtrain, Ytrain, Xtest_scaled, Ytest_orig)
@@ -36,29 +40,29 @@ def model_backtest(MODELS, df, T, t, SL, NP, Ts, Xtrain, Ytrain, Xtest_scaled, Y
             skip_overlapping_trades=skip_overlapping_trades
         )
 
-        # Shift labels ONLY for visualization plotting (-1, 0, 1)
-        Ypred_plot = Ypred - 1
-        Ytest_plot = Ytest_orig - 1
+        if plot_results:
+            Ypred_plot = Ypred - 1
+            Ytest_plot = Ytest_orig - 1
 
-        plt.figure(figsize=(14, 6))
-        plt.subplot(2, 1, 1)
-        plt.plot(Ytest_plot[500:800], label='True Signals (Ytest)', color='royalblue', drawstyle='steps-mid')
-        plt.ylabel('Signal Value')
-        plt.title(f'{Model[0]} - Performance: Actual vs. Predicted Signals Over Time')
-        plt.legend(loc='upper left')
-        plt.grid(True, alpha=0.3)
-        plt.yticks([-1, 0, 1])
+            plt.figure(figsize=(14, 6))
+            plt.subplot(2, 1, 1)
+            plt.plot(Ytest_plot[500:800], label='True Signals (Ytest)', color='royalblue', drawstyle='steps-mid')
+            plt.ylabel('Signal Value')
+            plt.title(f'{Model[0]} - Performance: Actual vs. Predicted Signals Over Time')
+            plt.legend(loc='upper left')
+            plt.grid(True, alpha=0.3)
+            plt.yticks([-1, 0, 1])
 
-        plt.subplot(2, 1, 2)
-        plt.plot(Ypred_plot[500:800], label='Predicted Signals (Ypred)', color='darkorange', drawstyle='steps-mid', linewidth=1.5)
-        plt.xlabel('Time Step / Index')
-        plt.ylabel('Signal Value')
-        plt.legend(loc='upper left')
-        plt.grid(True, alpha=0.3)
-        plt.yticks([-1, 0, 1])
+            plt.subplot(2, 1, 2)
+            plt.plot(Ypred_plot[500:800], label='Predicted Signals (Ypred)', color='darkorange', drawstyle='steps-mid', linewidth=1.5)
+            plt.xlabel('Time Step / Index')
+            plt.ylabel('Signal Value')
+            plt.legend(loc='upper left')
+            plt.grid(True, alpha=0.3)
+            plt.yticks([-1, 0, 1])
 
-        plt.tight_layout()
-        plt.show()
+            plt.tight_layout()
+            plt.show()
 
         print('Total sharpe ratio : ', shr)
         Sharpe_ratios.append([Model[0], shr])
@@ -69,22 +73,90 @@ def model_backtest(MODELS, df, T, t, SL, NP, Ts, Xtrain, Ytrain, Xtest_scaled, Y
 def Multi_backtest(DATASETS, Models, T, t, SL, NP, Ts, SMA=20, ATRS=20, ATRL=3, ZVOL=20,
                    train_ratio=0.80, embargo_bars=None, window_step=5,
                    fee_pct=0.001, trading_days_per_year=252,
-                   skip_overlapping_trades=True):
-    Scores = []
-    for dataset in DATASETS:
-        df = dataset[1]
-        dfname = dataset[0]
-        (Xtrain, Ytrain, Xtest_scaled, Ytest_orig, Xi_test_df) = standardize(
-            df, T, t, SL, NP, SMA, ATRS, ATRL, ZVOL,
-            train_ratio, embargo_bars, window_step
-        )
-        Scores.append([dfname, model_backtest(
-            Models, df, T, t, SL, NP, Ts,
-            Xtrain, Ytrain, Xtest_scaled, Ytest_orig, Xi_test_df,
-            SMA, ATRS, ATRL, ZVOL, fee_pct, trading_days_per_year,
-            skip_overlapping_trades
-        )])
-    return Scores
+                   skip_overlapping_trades=True, max_workers=4):
+    available_cpus = get_available_cpu_count()
+    workers = max(1, min(max_workers, available_cpus, len(DATASETS)))
+
+    parameters = {
+        "T": T,
+        "t": t,
+        "SL": SL,
+        "NP": NP,
+        "Ts": Ts,
+        "SMA": SMA,
+        "ATRS": ATRS,
+        "ATRL": ATRL,
+        "ZVOL": ZVOL,
+        "train_ratio": train_ratio,
+        "embargo_bars": embargo_bars,
+        "window_step": window_step,
+        "fee_pct": fee_pct,
+        "trading_days_per_year": trading_days_per_year,
+        "skip_overlapping_trades": skip_overlapping_trades,
+        "model_n_jobs": max(1, available_cpus // workers),
+    }
+    jobs = [(dataset, Models, parameters) for dataset in DATASETS]
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        scores = list(executor.map(evaluate_dataset, jobs))
+
+    return scores
+
+
+def get_available_cpu_count():
+    """Return CPUs visible to this process and usable for workers."""
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        if hasattr(os, "process_cpu_count"):
+            return os.process_cpu_count()
+        return cpu_count()
+
+
+def evaluate_dataset(job):
+    """Evaluate all models for one ETF in an isolated process."""
+    dataset, models, parameters = job
+    df_name, df = dataset
+
+    Xtrain, Ytrain, Xtest_scaled, Ytest_orig, Xi_test_df = standardize(
+        df,
+        parameters["T"],
+        parameters["t"],
+        parameters["SL"],
+        parameters["NP"],
+        parameters["SMA"],
+        parameters["ATRS"],
+        parameters["ATRL"],
+        parameters["ZVOL"],
+        parameters["train_ratio"],
+        parameters["embargo_bars"],
+        parameters["window_step"],
+    )
+
+    model_scores = model_backtest(
+        models,
+        df,
+        parameters["T"],
+        parameters["t"],
+        parameters["SL"],
+        parameters["NP"],
+        parameters["Ts"],
+        Xtrain,
+        Ytrain,
+        Xtest_scaled,
+        Ytest_orig,
+        Xi_test_df,
+        parameters["SMA"],
+        parameters["ATRS"],
+        parameters["ATRL"],
+        parameters["ZVOL"],
+        parameters["fee_pct"],
+        parameters["trading_days_per_year"],
+        parameters["skip_overlapping_trades"],
+        False,
+        parameters["model_n_jobs"],
+    )
+    return [df_name, model_scores]
 
 #Sharpe_ratios = [[ Name of model, Shape Ratio ], ... ]
 #Scores = [ [Dataset name, [ [model name, model score], ... ], [Dataset name, [ [model name, model score], ... ], ... ]
@@ -92,11 +164,11 @@ def Multi_backtest(DATASETS, Models, T, t, SL, NP, Ts, SMA=20, ATRS=20, ATRL=3, 
 def Best_overall(DATASETS, MODELS, T, t, SL, NP, Ts, SMA=20, ATRS=20, ATRL=3, ZVOL=20,
                  train_ratio=0.80, embargo_bars=None, window_step=5,
                  fee_pct=0.001, trading_days_per_year=252,
-                 skip_overlapping_trades=True):
+                 skip_overlapping_trades=True, max_workers=4):
     Scores = Multi_backtest(
         DATASETS, MODELS, T, t, SL, NP, Ts, SMA, ATRS, ATRL, ZVOL,
         train_ratio, embargo_bars, window_step, fee_pct, trading_days_per_year,
-        skip_overlapping_trades
+        skip_overlapping_trades, max_workers
     )
     all_models = {}
     Datasets = []

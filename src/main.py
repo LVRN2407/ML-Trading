@@ -2,9 +2,11 @@ from .ML.Data_imports import DATASETS
 from .ML.Models import Models
 from .backtest.backtest import Best_overall
 from .config import CONFIG
+import time
 
 
 def main():
+    started_at = time.perf_counter()
     best_model, mean_sharpe = Best_overall(
         DATASETS,
         Models,
@@ -23,7 +25,10 @@ def main():
         fee_pct=CONFIG.backtest.fee_pct,
         trading_days_per_year=CONFIG.backtest.trading_days_per_year,
         skip_overlapping_trades=CONFIG.backtest.skip_overlapping_trades,
+        max_workers=CONFIG.backtest.max_workers,
     )
+    elapsed = time.perf_counter() - started_at
+    print(f"BENCHMARK_SECONDS={elapsed:.6f}")
     return best_model, mean_sharpe
 
 
